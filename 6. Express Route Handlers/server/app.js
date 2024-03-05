@@ -24,6 +24,14 @@ const {
 const express = require('express');
 const app = express();
 
+app.use(express.json());
+
+app.use((req, res, next) => {
+  console.log("Body: ", req.body)
+  console.log("Query: ", req.query)
+  next()
+})
+
 // Get all artists
 app.get('/artists', (req, res) => {
   try{
@@ -56,9 +64,10 @@ app.get('/artists/:artistId', (req, res) => {
 app.patch('/artists/:artistId', (req, res) => {
   try {
     const artistId = req.params.artistId
-    const newName = req.body
+    const data = req.body
+
     if(artistId) {
-      const artist = editArtistByArtistId(artistId, newName)
+      const artist = editArtistByArtistId(artistId, data)
       res.status(200).json(artist);
     }
     else{
@@ -125,13 +134,20 @@ app.post('/artist/:artistId/albums', (req, res) => {
   try {
     const artistId = req.params.artistId
     const data = req.body
-    if(artistId) {
+    if(artistId && data.name) {
       const albums = addAlbumByArtistId(artistId, data)
       res.status(201).json(albums)
     }
-    else{
-      res.status(404).send("Artist Id not found")
+    else if(artistId && !data.name) {
+      res.status(404).send("Data not found")
     }
+    else if(!artistId && data.name) {
+      res.status(404).send("ArtistId not found")
+    }
+    else{
+      res.status(404).send("ArtistId && Data not found")
+    }
+
   } catch (err) {
     res.status(400).send("Error: " + err.message)
   }
@@ -142,14 +158,14 @@ app.patch('/albums/:albumId', (req, res) => {
   try {
     const albumId = req.params.albumId
     const data = req.body
-    if(albumId && data) {
+    if(albumId && data.name) {
       const albums = editAlbumByAlbumId(albumId, data)
       res.status(200).json(albums)
     }
-    else if(albumId && !data) {
+    else if(albumId && !data.name) {
       res.status(404).send("Data not found")
     }
-    else if(!albumId && data) {
+    else if(!albumId && data.name) {
       res.status(404).send("AlbumId not found")
     }
     else{
@@ -179,9 +195,10 @@ app.delete('/albums/:albumId', (req, res) => {
 })
 
 // Get all albums with names filtered by first letter
-app.get('/albums?startsWith=', (req, res) => {
+app.get('/albums', (req, res) => {
   try {
     const startsWith = req.query.startsWith
+
     if (startsWith){
       const albums = getFilteredAlbums(startsWith)
       res.status(200).json(albums)
@@ -243,22 +260,22 @@ app.get('/songs/:songId', (req, res) => {
 })
 
 // Add a song to a specific album based on albumId
-app.post('/songs/:songId', (req, res) => {
+app.post('/albums/:albumId/songs', (req, res) => {
   try {
-    const songId = req.params.songId
+    const albumId = req.params.albumId
     const data = req.body
-    if(songId) {
-      const songs = addSongByAlbumId(songId, data)
+    if(albumId) {
+      const songs = addSongByAlbumId(albumId, data)
       res.status(201).json(songs)
     }
-    else if(songId && !data) {
+    else if(albumId && !data) {
       res.status(404).send("Data not found")
     }
-    else if(!songId && data) {
-      res.status(404).send("Song Id not found")
+    else if(!albumId && data) {
+      res.status(404).send("albumId not found")
     }
     else{
-      res.status(404).send("Song Id && Data not found")
+      res.status(404).send("albumId && Data not found")
     }
   } catch (err) {
     res.status(400).send(err.message);
@@ -293,7 +310,7 @@ app.delete('/songs/:songId', (req, res) => {
   try {
     const songId = req.params.songId
     if(songId) {
-      deleteSongBySongId(songId, data)
+      deleteSongBySongId(songId)
       res.status(200).json({
         "message": "Successfully deleted"
       })
